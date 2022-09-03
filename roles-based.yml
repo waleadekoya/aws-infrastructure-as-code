@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Give the IAM role in Account B permission to download (GET Object) and upload (PUT Object) objects to and from a specific bucket"
+Resources:
+  IAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      # https://aws.amazon.com/premiumsupport/knowledge-center/cross-account-access-s3/
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - "s3:ListBucket"
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:PutObjectAcl"
+            Resource:
+              - "arn:aws:s3:::project-cloudformation-sessions/*"
+            Effect: "Allow"
+

@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation template for Amazon S3 bucket
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: project-cloudformation-sessions
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: "arn:aws:s3:::project-cloudformation-sessions"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Principal:
+              AWS: "arn:aws:iam::749770058555:user/wale-yahoo-mail"
+          - Action:
+            - "s3:ListBucket"
+            - "s3:GetObject"
+            - "s3:GetBucketLocation"
+            - "s3:GetObjectTagging"
+            - "s3:PutObject"
+            - "s3:PutObjectAcl"
+            Resource:
+              - "arn:aws:s3:::project-cloudformation-sessions"
+              - "arn:aws:s3:::project-cloudformation-sessions/*"
+            Effect: "Allow"
+
+Outputs:
+  S3Bucket:
+    Description: Bucket created using this template
+    Value: !Ref S3Bucket
+# aws cloudformation validate-template --template-body file://s3.yml
+# aws cloudformation delete-stack --stack-name s3-test-stack
+
+#  BucketPolicy:
+#    Type: AWS::S3::BucketPolicy
+#    Properties:
+#      Bucket: !Ref S3Bucket
+#    PolicyDocument:
+#      Version: 2012-10-17
+#      Statement:
+#        - Action:
+#            - 's3:GetObject'
+#          Effect: Allow
+#          Resource: !Join
+#            - ''
+#            - - 'arn:aws:s3:::'
+#              - !Ref project-cloudformation-sessions
+#              - /*
+#          Principal: "*"
+#          Condition:
+#            StringLike:
+
+

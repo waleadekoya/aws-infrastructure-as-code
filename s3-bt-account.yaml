@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: cross-account-s3-bucket-policy
+Parameters: # https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-template-validation/
+  S3Bucket:
+    Type: String
+    Default: "project-cloudformation-sessions"
+Resources:
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+ # https://www.serverless.com/framework/docs/providers/aws/guide/resources#aws-cloudformation-resource-reference
+ # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-policy.html
+ # https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-template-validation/
+    Properties:
+      Bucket: !Ref S3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: "Allow"
+            Principal: # https://aws.amazon.com/premiumsupport/knowledge-center/cross-account-access-s3/
+              AWS: "arn:aws:iam::749770058555:user/wale-yahoo-mail"
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:PutObjectAcl"
+            Resource:
+              - "arn:aws:s3:::project-cloudformation-sessions/*"
+              - "arn:aws:s3:::project-cloudformation-sessions"
+

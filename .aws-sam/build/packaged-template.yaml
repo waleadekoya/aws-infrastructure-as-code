@@ -1,0 +1,25 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: cross-account-s3-bucket-policy
+Parameters:
+  S3Bucket:
+    Type: String
+    Default: project-cloudformation-sessions
+Resources:
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: S3Bucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: arn:aws:iam::749770058555:user/wale-yahoo-mail
+          Action:
+          - s3:GetObject
+          - s3:PutObject
+          - s3:PutObjectAcl
+          Resource:
+          - arn:aws:s3:::project-cloudformation-sessions/*
+          - arn:aws:s3:::project-cloudformation-sessions
