@@ -1,25 +1,42 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: cross-account-s3-bucket-policy
-Parameters:
-  S3Bucket:
-    Type: String
-    Default: project-cloudformation-sessions
+AWSTemplateFormatVersion: 2010-09-09
+Description: CloudFormation template for Amazon S3 bucket
 Resources:
-  BucketPolicy:
+  PipelineS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Sub: project-cloudformation-dev-${AWS::Region}-${AWS::AccountId}
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+  PipelineS3BucketPolicy:
+    DependsOn:
+    - PipelineS3Bucket
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket:
-        Ref: S3Bucket
+        Fn::Sub: project-cloudformation-dev-${AWS::Region}-${AWS::AccountId}
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
         - Effect: Allow
           Principal:
             AWS: arn:aws:iam::749770058555:user/wale-yahoo-mail
           Action:
+          - s3:ListBucket
           - s3:GetObject
+          - s3:GetBucketLocation
+          - s3:GetObjectTagging
           - s3:PutObject
           - s3:PutObjectAcl
           Resource:
-          - arn:aws:s3:::project-cloudformation-sessions/*
-          - arn:aws:s3:::project-cloudformation-sessions
+          - Fn::Sub: project-cloudformation-dev-${AWS::Region}-${AWS::AccountId}
+          - Fn::Sub: project-cloudformation-dev-${AWS::Region}-${AWS::AccountId}/*
+Outputs:
+  S3Bucket:
+    Description: Bucket created using this template
+    Value: PipelineS3Bucket

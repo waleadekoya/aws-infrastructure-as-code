@@ -1,63 +1,92 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: CloudFormation template for Amazon S3 bucket
+Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html/
+  Env:
+    Type: String
+#    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - uat
+      - prod
+    Description: Input dev, test, uat, or prod.
+    AllowedPattern: "[a-zA-Z]+"
+  Department:
+    Type: String
+    Description: Department name
+    Default: IT-Services
+  Owner:
+    Type: String
+    Description: Bucket owner
+    Default: Global-IT-Support-Services
+
 Resources:
-  S3Bucket:
+  PipelineS3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     Properties:
-      BucketName: project-cloudformation-sessions
+      BucketName: !Sub "project-zax-${Env}-${AWS::Region}-${AWS::AccountId}"
+      # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-join.html
+      # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-sub.html
       AccessControl: Private
       VersioningConfiguration:
         Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
-  BucketPolicy:
+      Tags:
+        - Key: Owner
+          Value: !Ref "Owner"
+        - Key: Department
+          Value: !Ref Department
+
+  PipelineS3BucketPolicy:
+    DependsOn:
+      - "PipelineS3Bucket"
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: "arn:aws:s3:::project-cloudformation-sessions"
+      Bucket: !Sub "project-zax-${Env}-${AWS::Region}-${AWS::AccountId}"
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Principal:
+          - Effect: "Allow"
+            Sid: AllowCrossAccountReadWriteAccess
+            Principal:
               AWS: "arn:aws:iam::749770058555:user/wale-yahoo-mail"
-          - Action:
-            - "s3:ListBucket"
+            Action:
             - "s3:GetObject"
-            - "s3:GetBucketLocation"
             - "s3:GetObjectTagging"
             - "s3:PutObject"
             - "s3:PutObjectAcl"
             Resource:
-              - "arn:aws:s3:::project-cloudformation-sessions"
-              - "arn:aws:s3:::project-cloudformation-sessions/*"
-            Effect: "Allow"
+              - !Sub "arn:aws:s3:::project-zax-${Env}-${AWS::Region}-${AWS::AccountId}"
+              - !Sub "arn:aws:s3:::project-zax-${Env}-${AWS::Region}-${AWS::AccountId}/*"
 
 Outputs:
-  S3Bucket:
-    Description: Bucket created using this template
-    Value: !Ref S3Bucket
+#  S3Bucket:
+#  Description: Bucket created using this template
+  BucketName:
+    Value: !Ref PipelineS3Bucket
+  BucketArn:
+    Value: !GetAtt PipelineS3Bucket.Arn
+  BucketDomainName:
+    Value: !GetAtt PipelineS3Bucket.DomainName
+  BucketWebsiteUrl:
+    Value: !GetAtt PipelineS3Bucket.WebsiteURL
+  BucketOwner:
+    Value: !Ref Department
+
+# convert json to yaml:  py json_to_yaml.py test.json
 # aws cloudformation validate-template --template-body file://s3.yml
 # aws cloudformation delete-stack --stack-name s3-test-stack
-
-#  BucketPolicy:
-#    Type: AWS::S3::BucketPolicy
-#    Properties:
-#      Bucket: !Ref S3Bucket
-#    PolicyDocument:
-#      Version: 2012-10-17
-#      Statement:
-#        - Action:
-#            - 's3:GetObject'
-#          Effect: Allow
-#          Resource: !Join
-#            - ''
-#            - - 'arn:aws:s3:::'
-#              - !Ref project-cloudformation-sessions
-#              - /*
-#          Principal: "*"
-#          Condition:
-#            StringLike:
-
+# aws cloudformation create-stack --stack-name s3-bucket-template --template-body file://s3.yml
+# aws cloudformation update-stack --stack-name s3-bucket-template --template-body file://s3.yml
+# aws cloudformation create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yml
+# aws cloudformation --profile <profile_name> create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yml
 

@@ -1,19 +1,9 @@
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "AWS": "arn:aws:iam::AccountB:user/AccountBUserName"
-      },
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:PutObjectAcl"
-      ],
-      "Resource": [
-        "arn:aws:s3:::AccountABucketName/*"
-      ]
-    }
-  ]
+"Type" : "AWS::S3::Bucket",
+"Properties" : {
+"AccessControl" : "Private",
+"Tags" : [
+{ "Key" : "Name", "Value" : { "Ref" : "MyBucket" } }
+]
+}
 }

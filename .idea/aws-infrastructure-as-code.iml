@@ -25,6 +25,21 @@
             </DeploySamConfig>
           </value>
         </entry>
+        <entry key="s3.yml">
+          <value>
+            <DeploySamConfig>
+              <option name="autoExecute" value="true" />
+              <option name="bucketName" value="project-cloudformation-sessions" />
+              <option name="enabledCapabilities">
+                <list>
+                  <option value="IAM" />
+                  <option value="NAMED_IAM" />
+                </list>
+              </option>
+              <option name="stackName" value="s3-bucket-template" />
+            </DeploySamConfig>
+          </value>
+        </entry>
       </map>
     </option>
   </component>
