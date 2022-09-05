@@ -4,11 +4,11 @@ Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/par
   Env:
     Type: String
 #    Default: dev
-    AllowedValues:
-      - dev
-      - test
-      - uat
-      - prod
+    AllowedValues: [dev, test, uat, prod]
+#      - dev
+#      - test
+#      - uat
+#      - prod
     Description: Input dev, test, uat, or prod.
     AllowedPattern: "[a-zA-Z]+"
   Department:
@@ -83,10 +83,10 @@ Outputs:
     Value: !Ref Department
 
 # convert json to yaml:  py json_to_yaml.py test.json
-# aws cloudformation validate-template --template-body file://s3.yml
+# aws cloudformation validate-template --template-body file://s3.yaml
 # aws cloudformation delete-stack --stack-name s3-test-stack
-# aws cloudformation create-stack --stack-name s3-bucket-template --template-body file://s3.yml
-# aws cloudformation update-stack --stack-name s3-bucket-template --template-body file://s3.yml
-# aws cloudformation create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yml
-# aws cloudformation --profile <profile_name> create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yml
+# aws cloudformation create-stack --stack-name s3-bucket-template --template-body file://s3.yaml
+# aws cloudformation update-stack --stack-name s3-bucket-template --template-body file://s3.yaml
+# aws cloudformation create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yaml
+# aws cloudformation --profile <profile_name> create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yaml
 

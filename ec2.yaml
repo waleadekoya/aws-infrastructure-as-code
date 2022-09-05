@@ -1,7 +1,172 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description:
+Description: CloudFormation template for Amazon EC2 Instance
+Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html/
+  Env:
+    Type: String
+    #    Default: dev
+    AllowedValues: [dev, test, uat, prod]
+    Description: Input dev, test, uat, or prod.
+    AllowedPattern: "[a-zA-Z]+"
+  Department:
+    Type: String
+    Description: Department name
+    Default: IT-Services
+  Owner:
+    Type: String
+    Description: Bucket owner
+    Default: Global-IT-Support-Services
+  InstanceType:
+    Description: WebServer EC2 instance type
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /dev/ec2/instanceType
+#  InstanceType:
+#    Type: String
+#    Default: m5.xlarge
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+  SecurityGroupPort:
+    Type: Number
+    Description: Max and Min Value for SG Ports
+    MinValue: 10
+    MaxValue: 65535
+    Default: 22
+  DatabasePassword:
+    Type: AWS::SSM::Parameter::Value<String>
+    NoEcho: true
+    Description: The database admin account password
+    Default: some_secret_password # Use SSM Parameter Store instead AWS::SSM::Parameter
+    # SSM = AWS Systems Manager Parameter Store.
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ssm-parameter.html
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair
+    Description: |
+       Name of af existing EC2 KeyPair to enable SSH access to the instances.
+       Linked to AWS Parameter
+    Default: "DemoKeyPair"
+  SecurityGroupIngressCIDR:
+    Type: String
+    Description: The IP address range that can be used to communicate to the EC2 instances
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 0.0.0.0/0
+    AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form X.X.X.X/X
+  SubnetIpBlocks:
+    Type: CommaDelimitedList
+    Description: Comma-delimited list of three CIDR blocks
+    Default: 10.0.48.0/24, 10.0.112.0/24, 10.0.176.0/24
+
+
 Resources:
-  DummyServer:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: Linux VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  Linux:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ""
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: !Ref ImageId  #
+      # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html
+      # View a list of all Linux AMIs in the current AWS Region:
+      # aws ssm get-parameters-by-path --path /aws/service/ami-amazon-linux-latest --query "Parameters[].Name"
+      # aws ssm get-parameters-by-path --path /aws/service/ami-amazon-linux-latest --query "Parameters[].Value"
+      # aws ssm get-parameters-by-path --path /aws/service/ami-amazon-linux-latest --query "Parameters[].ARN"
+      SubnetId: !Ref Subnet1 # links the EC2 to this specific Subnet resource
+      SecurityGroupIds:
+        - !Ref SSHSecurityGroup
+#        - !Ref ServerSecurityGroup
+
+  # an elastic IP for this instance
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Linux
+
+  # first EC2 security group
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access via port 22
+      SecurityGroupIngress:
+        - CidrIp: !Ref SecurityGroupIngressCIDR
+          FromPort: !Ref SecurityGroupPort
+          IpProtocol: tcp
+          ToPort: !Ref SecurityGroupPort
+      VpcId: !Ref VPC
+
+  # second EC2 Security Group
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: allow connections from specified CIDR ranges
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 192.168.1.1/32
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      # the select function allows selection across a list
+      CidrBlock: !Select [ 0, !Ref SubnetIpBlocks ]
+      AvailabilityZone: eu-west-1a
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet1
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      # the select function allows selection across a list
+      CidrBlock: !Select [ 1, !Ref SubnetIpBlocks ]
+  Subnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      # the select function allows selection across a list
+      CidrBlock: !Select [ 2, !Ref SubnetIpBlocks ]
+
+
+
+
+# aws cloudformation create-stack --stack-name ec2-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://ec2.yaml
+# aws cloudformation update-stack --stack-name ec2-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://ec2.yaml
+# aws cloudformation delete-stack --stack-name ec2-stack
