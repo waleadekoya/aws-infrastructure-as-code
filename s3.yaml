@@ -4,12 +4,8 @@ Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/par
   Env:
     Type: String
 #    Default: dev
-    AllowedValues: [dev, test, uat, prod]
-#      - dev
-#      - test
-#      - uat
-#      - prod
-    Description: Input dev, test, uat, or prod.
+    AllowedValues: [dev, test, prod]
+    Description: Input must be one of dev, test, or prod
     AllowedPattern: "[a-zA-Z]+"
   Department:
     Type: String
@@ -20,10 +16,17 @@ Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/par
     Description: Bucket owner
     Default: Global-IT-Support-Services
 
+Conditions:
+  # Create specific resource only if Env == prod
+  CreateProdResources: !Equals [!Ref Env, prod]
+  CreateDevResources: !Equals [!Ref Env, dev]
+  CreateTestResources: !Equals [!Ref Env, test]
+
 Resources:
   PipelineS3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub "project-zax-${Env}-${AWS::Region}-${AWS::AccountId}"
       # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-join.html

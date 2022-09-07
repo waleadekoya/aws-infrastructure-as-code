@@ -1,11 +1,12 @@
-AWSTemplateFormatVersion: "2010-09-09"
+#AWSTemplateFormatVersion: "2010-09-09"
 Description: CloudFormation template for Amazon EC2 Instance
+
 Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html/
   Env:
     Type: String
     #    Default: dev
-    AllowedValues: [dev, test, uat, prod]
-    Description: Input dev, test, uat, or prod.
+    AllowedValues: [dev, test, prod]
+    Description: Input must be one of dev, test, or prod
     AllowedPattern: "[a-zA-Z]+"
   Department:
     Type: String
@@ -58,6 +59,33 @@ Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/par
     Description: Comma-delimited list of three CIDR blocks
     Default: 10.0.48.0/24, 10.0.112.0/24, 10.0.176.0/24
 
+Mappings:
+  EnvironmentToInstanceType:
+    dev:
+      instanceType: t2.micro
+    test:
+      instanceType: t2.small
+    uat:
+      instanceType: m5.xlarge
+    # need a bigger instance type in prod
+    prod:
+      instanceType: m5.xlarge
+
+Conditions:
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/conditions-section-structure.html
+  # Create specific resource based on Env values
+  IsProduction: !Equals [ !Ref Env, prod]
+  IsDevelopment: !Equals [ !Ref Env, dev]
+  IsTest: !Equals [ !Ref Env, test]
+
+Rules:
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/rules-section-structure.html
+  ProdInstanceType:
+    RuleCondition: !Equals [!Ref Env, prod]
+    Assertions:
+      - Assert:
+          !Equals [m5.xlarge, !Ref InstanceType]
+        AssertDescription: 'For a production environment, the instance type must be m5.xlarge'
 
 Resources:
   VPC:
@@ -77,10 +105,11 @@ Resources:
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
-  Linux:
+  LinuxInstance:
     Type: AWS::EC2::Instance
     Properties:
-      InstanceType: !Ref InstanceType
+#      InstanceType: !Ref InstanceType
+      InstanceType: !FindInMap [EnvironmentToInstanceType, !Ref 'Env', instanceType]
       KeyName: !Ref KeyName
       ImageId: !Ref ImageId  #
       # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html
@@ -89,19 +118,21 @@ Resources:
       # aws ssm get-parameters-by-path --path /aws/service/ami-amazon-linux-latest --query "Parameters[].Value"
       # aws ssm get-parameters-by-path --path /aws/service/ami-amazon-linux-latest --query "Parameters[].ARN"
       SubnetId: !Ref Subnet1 # links the EC2 to this specific Subnet resource
-      SecurityGroupIds:
+      SecurityGroupIds: # for a non-default VPC, you must use security group IDs instead
         - !Ref SSHSecurityGroup
 #        - !Ref ServerSecurityGroup
 
   # an elastic IP for this instance
   ElasticIP:
+    # http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-eip.html
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-      InstanceId: !Ref Linux
+      InstanceId: !Ref "LinuxInstance"
 
   # first EC2 security group
   SSHSecurityGroup:
+    # http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable SSH access via port 22
@@ -114,6 +145,7 @@ Resources:
 
   # second EC2 Security Group
   ServerSecurityGroup:
+    # http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: allow connections from specified CIDR ranges
@@ -164,7 +196,29 @@ Resources:
       # the select function allows selection across a list
       CidrBlock: !Select [ 2, !Ref SubnetIpBlocks ]
 
+  MountPoint:
+    Type: AWS::EC2::VolumeAttachment
+    Condition: IsProduction
+    Properties:
+      InstanceId:
+        !Ref LinuxInstance
+      VolumeId:
+        !Ref NewVolume
+      Device: /dev/sdh
 
+  NewVolume:
+    Type: AWS::EC2::Volume
+    Condition: IsProduction
+    Properties:
+      Size: 1
+      AvailabilityZone:
+        !GetAtt LinuxInstance.AvailabilityZone
+
+Outputs:
+  VolumeId:
+    Condition: IsProduction
+    Value:
+      !Ref NewVolume
 
 
 # aws cloudformation create-stack --stack-name ec2-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://ec2.yaml
