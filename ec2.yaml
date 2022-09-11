@@ -1,4 +1,4 @@
-#AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: "2010-09-09"
 Description: CloudFormation template for Amazon EC2 Instance
 
 Parameters: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html/
@@ -165,7 +165,7 @@ Resources:
       VpcId: !Ref VPC
       # the select function allows selection across a list
       CidrBlock: !Select [ 0, !Ref SubnetIpBlocks ]
-      AvailabilityZone: eu-west-1a
+      AvailabilityZone: !Select [0, !GetAZs ""]  #eu-west-1a
   RouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
