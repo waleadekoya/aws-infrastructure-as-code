@@ -1,0 +1,22 @@
+# 1. Install the AWS CLI
+# 2. Install Docker
+# 3. Create a Docker image & test
+# 4. Authenticate to your default registry:
+     # aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <aws_account_id>.dkr.ecr.<region>.amazonaws.com
+     # you should get a message: "Login Succeeded"
+# 5. Create a repository using this command. You should get a JSON response containing the repository arm:
+    # `aws ecr create-repository --repository-name <repository-name> \
+    # --image-scanning-configuration scanOnPush=true \
+    # --region region`
+# 6. Push an image to Amazon ECR
+    # a. Tag the image to push to ECR:
+         # `docker tag <docker-image>:<docker-image-tag> <aws_account_id>.dkr.ecr.<region>.amazonaws.com/<repository-name>`
+    # b. Push the image:
+    # `docker push <aws_account_id>.dkr.ecr.region.amazonaws.com/<repository-name>`
+# 7. Pull an image from Amazon ECR:
+    # `docker pull aws_account_id.dkr.ecr.region.amazonaws.com/<repository-name>:<image-tag>`
+# 8. Delete an image
+  #. aws ecr batch-delete-image --repository-name <repository-name> --image-ids imageTag=latest --region <region>
+# 9. Delete a repository
+  # . `aws ecr delete-repository --repository-name <repository-name> --force --region <region>
+
