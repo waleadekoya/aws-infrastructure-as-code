@@ -87,9 +87,12 @@ Outputs:
 
 # convert json to yaml:  py json_to_yaml.py test.json
 # aws cloudformation validate-template --template-body file://s3.yaml
-# aws cloudformation delete-stack --stack-name s3-test-stack
+# aws cloudformation delete-stack --stack-name s3-bucket-template
 # aws cloudformation create-stack --stack-name s3-bucket-template --template-body file://s3.yaml
 # aws cloudformation update-stack --stack-name s3-bucket-template --template-body file://s3.yaml
 # aws cloudformation create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yaml
 # aws cloudformation --profile <profile_name> create-stack --stack-name s3-bucket-stack --parameters ParameterKey=Env,ParameterValue=dev --template-body file://s3.yaml
+
+# Deploy API
+# aws cloudformation deploy --template-file s3.yaml --stack-name s3-bucket-stack --parameter-overrides Env=dev
 
