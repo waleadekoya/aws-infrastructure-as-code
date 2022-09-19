@@ -128,7 +128,7 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
-      InstanceId: !Ref "LinuxInstance"
+      InstanceId: !Ref LinuxInstance
 
   # first EC2 security group
   SSHSecurityGroup:

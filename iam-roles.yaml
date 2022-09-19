@@ -19,9 +19,64 @@ Resources:
               Service: eks.amazonaws.com
               AWS: arn:aws:iam::578120814996:user/sesan
       Description: "creates an Amazon EKS cluster IAM role"
-      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonEKSClusterPolicy]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonEKSClusterPolicy] # attach managed policy to this role
+
+  AssumeRole: # IAM Policy granting permission to call sts:AssumeRole for a role to assume
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-policy.html
+    Type: AWS::IAM::Policy  # Used to create inline policies and inline policies MUST be part of a user/group or role.
+    Properties:
+      PolicyName: "AllowUserToAssumeAnotherRole"
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 'sts:AssumeRole'
+            Resource: 'arn:aws:iam::578120814996:role/glue-refresher-full-course'
+#      Users: ['sesan']
+      Groups: ['AdminUsers']
+#      Roles: ['glue-refresher-full-course']
+
+#  Edit Trust Relationship for the Role being Assumed by Adding the Caller assuming the Role
+#    # https://docs.aws.amazon.com/directoryservice/latest/admin-guide/edit_trust.html
+#  {
+#    "Sid": "AllowSpecifiedUserToAssumeThisRole",
+#    "Effect": "Allow",
+#    "Principal": {
+#      "AWS": "arn:aws:iam::578120814996:user/sesan" # the caller assuming the role
+#    },
+#    "Action": "sts:AssumeRole"
+#  }
+  StandAlonePolicy: # create a group and add this policy to group
+    Type: AWS::IAM::ManagedPolicy #
+    Properties:
+      Description: Managed policy to allow s3 access
+      ManagedPolicyName: StandAlonePolicy
+      Path: /
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:*"
+            Resource: "*"
+      Groups:
+        - !Ref MailingGroup
+    DependsOn: MailingGroup
+
+  MailingGroup: # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-iam-group.html
+      Type: AWS::IAM::Group
+      Properties:
+        GroupName: MailingGroup
+        ManagedPolicyArns: [] # The ARN of the IAM policy to attach (Optional).
 
 
 
 
 # aws cloudformation create-stack --stack-name iam-roles-stacks --template-body file://iam-roles.yaml --capabilities CAPABILITY_NAMED_IAM
+# aws cloudformation validate-template --template-body file://iam-roles.yaml
+
+# Deploy API
+# aws cloudformation deploy --template-file iam-roles.yaml --stack-name iam-roles-stacks --capabilities CAPABILITY_NAMED_IAM
+
+# Troubleshoot
+# aws cloudformation describe-stack-events --stack-name iam-roles-stacks
