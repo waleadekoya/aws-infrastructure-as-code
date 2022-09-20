@@ -10,6 +10,21 @@
   <component name="deploySettings">
     <option name="samConfigs">
       <map>
+        <entry key="iam-stacks\github-action-role.yaml">
+          <value>
+            <DeploySamConfig>
+              <option name="autoExecute" value="true" />
+              <option name="bucketName" value="project-cloudformation-sessions" />
+              <option name="enabledCapabilities">
+                <list>
+                  <option value="IAM" />
+                  <option value="NAMED_IAM" />
+                </list>
+              </option>
+              <option name="stackName" value="github-action-role-stack" />
+            </DeploySamConfig>
+          </value>
+        </entry>
         <entry key="s3-bt-account.yaml">
           <value>
             <DeploySamConfig>

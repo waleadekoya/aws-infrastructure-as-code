@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Manages IAM roles on AWS account
+Resources:
+  # 1. Create an IAM role for GitHub Actions
+  GithubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GithubActionsRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+              - sts.amazonaws.com
+          # 3. Configure role for web identity or OpenID connect federation
+          # https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html
+          - Action: "sts:AssumeRoleWithWebIdentity"
+            Effect: Allow
+            Principal:
+              Federated: "arn:aws:iam::578120814996:oidc-provider/token.actions.githubusercontent.com"
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+                "token.actions.githubusercontent.com:sub": "repo:waleadekoya/WebCrawlers:ref:refs/heads/master"
+      MaxSessionDuration: 7200
+
+      Description: "creates IAM role for Github Actions"
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AmazonS3FullAccess] # attach managed policy to this role
+
+
+
+  # 2. Add GitHub OIDC identity provider to AWS:
+  # https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services#adding-the-identity-provider-to-aws
+  GithubIdentityProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+      Url: https://token.actions.githubusercontent.com
+
+
+Outputs:
+  GithubActionsRole:
+    Value: !GetAtt GithubActionsRole.Arn
+
+# https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+# https://github.com/aws-actions/configure-aws-credentials#assuming-a-role
+# aws cloudformation deploy --stack-name github-action-role-stack --template-file iam-stacks\github-action-role.yaml --capabilities CAPABILITY_NAMED_IAM
+# aws cloudformation validate-template --template-body file://iam-stacks/github-action-role.yaml
