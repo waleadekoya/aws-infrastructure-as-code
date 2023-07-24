@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Attach an IAM role to an EC2 instance with CF
+
+Parameters:
+  # https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#AMICatalog:
+  ImageId:
+    # aws ec2 describe-images --owners self amazon --filters "Name=image-id,Values=ami-09e2d756e7d78558d"
+    # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/finding-an-ami.html
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+#    Type: String
+#    Description: 'Linux 2 AMI'
+  SampleEC2InstanceRole:
+    Type: String
+    Default: AWSGlueServiceRole-Developer
+  InstanceType:
+    Type: String
+    Description: t2 micro - free tier
+    Default: t2.micro
+  SubnetIpBlocks:
+    Type: CommaDelimitedList
+    Description: Comma-delimited list of three CIDR blocks
+    Default: 10.0.48.0/24, 10.0.112.0/24, 10.0.176.0/24
+#  SSHKeyName:
+#    Description: SSH Keypair to log in to the instance
+#    Type: AWS::EC2::KeyPair::KeyName
+#    Default: demo-key-pair
+
+
+Resources:
+  # Step 1: Create an AWS::IAM::InstanceProfile
+  SampleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: sample-ec2-instance-profile
+      Path: /
+      Roles:
+        # can either be an IAM role resource created in the same template or
+        # a parameter which is passing an existing role to instance profile.
+        # Thus allowing you to attach an existing role to an EC2 instance.
+        # Ensure you are passing a role name NOT the role arn to the Roles parameter
+#        - !Ref SampleEC2InstanceRole
+        - !Ref EC2Role
+
+  # Step 2: Create an AWS::EC2::Instance and refer SampleInstanceProfile in the parameter IamInstanceProfile of
+  SampleInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      IamInstanceProfile: !Ref SampleInstanceProfile
+      KeyName: !Ref EC2KeyPair # !Ref SSHKeyName
+#      SecurityGroupIds:
+#        - !Ref SSHSecurityGroup
+        # !GetAtt MySGResourceName.GroupId
+#        - !GetAtt SSHSecurityGroup.GroupId
+      InstanceType: !Ref InstanceType
+#      SubnetId: !Ref Subnet1
+      NetworkInterfaces:
+        # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-instance.html#cfn-ec2-instance-networkinterfaces:~:text=Automatically%20assign%20a%20public%20IP%20address
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId:
+           Ref: Subnet1
+          GroupSet:
+            - Ref: SSHSecurityGroup
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EC2InstanceRole
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+      Description: "EC2 instance role with options to add managed policies"
+      # https://aws.amazon.com/premiumsupport/knowledge-center/cloudformation-attach-managed-policy/
+      ManagedPolicyArns: [
+        arn:aws:iam::aws:policy/SecretsManagerReadWrite
+      ] # attach managed policy to this role
+
+  SSHSecurityGroup:
+    # http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: allow SSH connection via port 22
+      SecurityGroupIngress: # The inbound rules associated with this SG
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress: # The outbound rules associated with this SG
+        # https://stackoverflow.com/a/52104322
+        - IpProtocol: -1 # Use -1 to specify all protocols
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic
+      Tags:
+        - Key: Name
+          Value: SSH-SG
+      VpcId: !Ref VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ 0, !Ref SubnetIpBlocks ]
+      AvailabilityZone: !Select [0, !GetAZs ""]  #eu-west-1a
+      MapPublicIpOnLaunch: true # whether instances launched in this subnet receive a public IPv4 address
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+
+  SubnetARouteTableAssociation: # Associates a subnet with a route table
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-subnetroutetableassociation.html
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: # The subnet and route table must be in the same VPC
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet1
+
+  EC2KeyPair:
+    # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-keypair.html
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: demo-key-pair
+      # To retrieve the Key Value use:
+      # aws ssm get-parameter --name /ec2/keypair/<key_pair_id> --region eu-west-1 --with-decryption --query "Parameter.Value"
+      # aws ssm get-parameter --name /ec2/keypair/<key_pair_id> --region eu-west-1 --with-decryption --query "Parameter.Value" --output text > Destination\Path\ec2_key_pair.pem
+      # https://stackoverflow.com/a/68341451
+
+
+Outputs:
+  SampleInstanceId:
+    Description: The EC2 instance ID
+    Value: !Ref SampleInstance
+  KeyPairId:
+    Description: the ID of the key pair
+    Value: !GetAtt EC2KeyPair.KeyPairId
+  KeyFingerprint:
+    Description: the SHA-1 digest of the DER encoded private key
+    Value: !GetAtt EC2KeyPair.KeyFingerprint
+# Deploy API
+# aws cloudformation deploy --template-file ec2-with-iam-role.yaml --stack-name ec2-stack-free-tier --capabilities CAPABILITY_NAMED_IAM
+# aws cloudformation delete-stack --stack-name ec2-stack-free-tier

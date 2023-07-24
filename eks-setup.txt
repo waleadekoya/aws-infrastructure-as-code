@@ -1,0 +1,102 @@
+#######################################################
+***** Helm is the Kubernetes package manager ****
+Airflow is:
+    a fairly complicated stateful application,
+    with a SQL database and a Redis cache,
+    which makes for a tricky setup
+#####################################################
+
+# 1.  Install eksctl
+https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html
+
+# 2. Create an Amazon EKS cluster: use `eksctl` cli to simplify the process
+   - https://docs.aws.amazon.com/eks/latest/userguide/getting-started-eksctl.html
+   - https://eksctl.io/
+   - https://github.com/weaveworks/eksctl/tree/main/examples
+   run this command:
+   # `eksctl create cluster --name eks-dev --region eu-west-1`
+
+#3. Connect to your EKS Cluster
+https://aws.amazon.com/premiumsupport/knowledge-center/eks-cluster-connection/
+# https://aws.amazon.com/premiumsupport/knowledge-center/iam-assume-role-cli/
+    a. run: `aws eks --region region update-kubeconfig --name cluster_name`
+       - aws sts get-caller-identity
+       e.g. `aws eks --region <your-aws-region-code> update-kubeconfig --name <your-cluster-name>`
+    b. Get pods or nodes information:
+      `kubectl -n cluster-name get pods`
+       `kubectl get nodes`
+    c. rename context
+       - `kubectl config rename-context old-name new-name`
+
+#4 Clean-up kubectl config file:
+   delete cluster and nodes with:
+   `eksctl delete cluster --name my-cluster --region region-code`
+   - https://stackoverflow.com/a/37016744
+
+
+# Shell into running worker pod:
+ - command: `kubectl -n <namespace> exec --stdin --tty <pod-name> -- /bin/bash`
+ - e.g. `kubectl -n airflow exec --stdin --tty airflow-worker-0 -- /bin/bash`
+
+###########################################################################################
+
+# Airflow on EKS
+  - https://towardsdatascience.com/setting-up-airflow-on-aws-eks-385667671789
+  - https://github.com/rootstrap/eks-airflow/blob/main/airflow/README.md
+----------------------------------------------------------------------------------------
+
+# Requirements:
+ 1. EKS Cluster
+ 2. IAM admin role or with adequate permissions to create AWS resources
+ 3. AWS Cloud Development Kit (CDK) [https://docs.aws.amazon.com/cdk/v2/guide/getting_started.html]
+ 4. Helm-chart
+
+ Steps to install Airflow on EKS Cluster:
+  1. helm repo add apache-airflow https://airflow.apache.org
+  2. kubectl create namespace airflow
+  3. helm repo update
+  4. helm install airflow apache-airflow/airflow --namespace airflow --debug
+  5. To upgrade the helm chart:
+     helm upgrade --install airflow apache-airflow/airflow --namespace airflow -f .\airflow\values.yaml --debug
+
+ Steps to Install EFS CSI Driver using helm-chart:
+  1. run: `helm repo add aws-efs-csi-driver https://kubernetes-sigs.github.io/aws-efs-csi-driver/`
+  2. Enable IAM OIDC provider:  `eksctl utils associate-iam-oidc-provider --cluster=<cluster-name>`
+  3. Follow the steps here: https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html
+
+###############################
+Kubectl Cheatsheet: https://kubernetes.io/docs/reference/kubectl/cheatsheet/#kubectl-context-and-configuration
+
+################################
+## Airflow Worker NetworkPolicy
+#################################
+
+NOTES:
+Thank you for installing Apache Airflow 2.3.0!
+
+Your release is named airflow.
+You can now access your dashboard(s) by executing the following command(s) and visiting the corresponding port at localhost in your browser:
+
+Airflow Webserver: kubectl port-forward svc/airflow-webserver 8080:8080 --namespace airflow
+Default Webserver (Airflow UI) Login credentials:
+    username: admin
+    password: admin
+Default Postgres connection credentials:
+    username: postgres
+    password: postgres
+    port: 5432
+
+You can get Fernet Key value by running the following:
+
+    echo Fernet Key: $(kubectl get secret --namespace airflow airflow-fernet-key -o jsonpath="{.data.fernet-key}" | base64 --decode)
+
+###########################################################
+#  WARNING: You should set a static webserver secret key  #
+###########################################################
+
+References:
+1. https://github.com/Kunal-Shah107/AIRFLOW-ON-AWS-EKS
+2. https://github.com/manojbalaji1/aws-airflow-helm
+3. https://towardsdatascience.com/setting-up-airflow-on-aws-eks-385667671789
+4. https://github.com/aws-samples/airflow-for-amazon-eks-blog
+5. https://dev.to/damola12345/containers-on-aws-eks-vs-ecs-vs-fargate-vs-ec2-317n

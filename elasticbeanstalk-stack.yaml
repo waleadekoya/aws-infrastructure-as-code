@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/Welcome.html
+  https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticbeanstalk-application.html
+  https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-beanstalk-version.html
+
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, test, prod]
+
+Resources:
+  djangoApplication:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      ApplicationName: MaidstoneApp
+      Description: |
+        AWS Elastic Beanstalk web application code for Maidstone Farms
+        Developed in Python using Django web Framework
+
+  AppVersion:
+    Type: AWS::ElasticBeanstalk::ApplicationVersion
+    Properties:
+      ApplicationName:
+        Ref: djangoApplication
+      Description: | 
+        Version 1.0
+        AWS::ElasticBeanstalk::ApplicationVersion specifies an application version, 
+        An iteration of deployable code, for an Elastic Beanstalk application.
+      SourceBundle:
+        S3Bucket: !Sub "elasticbeanstalk-apps-${AWS::Region}"
+        S3Key: django-maidstone-app.zip
+
+  djangoConfigurationTemplate:
+    Type: AWS::ElasticBeanstalk::ConfigurationTemplate
+    Properties:
+      ApplicationName:
+        Ref: djangoApplication
+      Description: | 
+        AWS ElasticBeanstalk Django Configuration Template
+        Replace solution-stack with a solution stack name (platform version).
+        For a list of available solution stacks, use the AWS CLI command:
+           `aws elasticbeanstalk list-available-solution-stacks`
+      SolutionStackName: '64bit Amazon Linux 2 v3.3.17 running Python 3.8'
+      OptionSettings:
+        - Namespace: 'aws:autoscaling:launchconfiguration'
+          OptionName: 'IamInstanceProfile'
+          Value: !Ref EC2InstanceProfile
+        - Namespace: 'aws:elasticbeanstalk:environment'
+          OptionName: !Ref Env
+          Value: LoadBalanced
+        - Namespace: 'aws:autoscaling:asg'
+          OptionName: MinSize
+          Value: '2'
+        - Namespace: 'aws:autoscaling:asg'
+          OptionName: MaxSize
+          Value: '6'
+
+  Environment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      ApplicationName:
+        Ref: djangoApplication
+      Description: AWS ElasticBeanstalk Environment
+      EnvironmentName: dev
+      TemplateName:
+        Ref: djangoConfigurationTemplate
+      VersionLabel:
+        Ref: AppVersion
+
+
+  BeanstalkEC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Description: Beanstalk EC2 role
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWebTier
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkMulticontainerDocker
+        - arn:aws:iam::aws:policy/AWSElasticBeanstalkWorkerTier
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref BeanstalkEC2Role
+
+# Deploy API
+# aws cloudformation deploy --template-file elasticbeanstalk-stack.yaml --stack-name django-elasticbeanstalk-stack --capabilities CAPABILITY_NAMED_IAM
+# aws cloudformation delete-stack --stack-name django-elasticbeanstalk-stack
+# aws cloudformation validate-template --template-body file://elasticbeanstalk-stack.yaml
+
