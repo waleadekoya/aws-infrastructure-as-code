@@ -33,3 +33,9 @@ variable "vpc_security_group_ids" {
   type        = list(string)
   default     = []
 }
+
+variable "subnet_id" {
+  description = "ID of the subnet where the EC2 instance will be created"
+  type        = string
+}
+
