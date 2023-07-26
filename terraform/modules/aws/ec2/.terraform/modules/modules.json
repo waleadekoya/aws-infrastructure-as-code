@@ -1,1 +1,14 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"security_group","Source":"../security_group","Dir":"../security_group"}]}
+{
+  "Modules": [
+    {
+      "Key": "",
+      "Source": "",
+      "Dir": "."
+    },
+    {
+      "Key": "security_group",
+      "Source": "../security_group",
+      "Dir": "../security_group"
+    }
+  ]
+}

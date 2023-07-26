@@ -9,12 +9,12 @@ module "security_group" {
 }
 
 module "ec2-linux" {
-  source = "./modules/aws/ec2"
-  instance_type = var.environment == "prod" ? "t2.large" : "t2.micro" #"t2.micro"
+  source                 = "./modules/aws/ec2"
+  instance_type          = var.environment == "prod" ? "t2.large" : "t2.micro" #"t2.micro"
   vpc_security_group_ids = [module.security_group.sg_id]
-  user_data_file = "default.sh"
-  tags = {
-    Name        = "ec2-sandbox-${var.environment}"
+  user_data_file         = "default.sh"
+  tags                   = {
+    Name = "ec2-sandbox-${var.environment}"
   }
 
 }
@@ -22,7 +22,7 @@ module "ec2-linux" {
 data "aws_caller_identity" "current" {}
 
 module "s3_bucket" {
-  source  = "./modules/aws/s3"
+  source = "./modules/aws/s3"
 
   bucket = "s3-bucket-${data.aws_caller_identity.current.account_id}"
   acl    = "private"
@@ -31,6 +31,23 @@ module "s3_bucket" {
     Environment = "dev"
     Name        = "My bucket"
   }
+}
+
+module "iam" {
+  source = "./modules/aws/iam"
+
+  role_name    = "terraform-execution-role-${var.environment}"
+  service_name = "ec2.amazonaws.com"
+  policy_name  = "infra_deployment_policy"
+  actions      = ["s3:*"]
+  resources    = ["*"]
+}
+
+module "vpc" {
+  source       = "./modules/aws/vpc"
+  cidr_block   = "10.0.0.0/16"
+  vpc_name     = "${var.environment}-custom-vpc"
+  environment  = var.environment
 }
 
 

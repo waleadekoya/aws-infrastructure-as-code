@@ -53,9 +53,9 @@ data "aws_ami" "latest_amz_linux_ami" {
 
 
 resource "aws_instance" "example" {
-  ami           = data.aws_ami.latest_ubuntu_ami.id
-  instance_type = var.instance_type
-  user_data = file(var.user_data_file)
+  ami                    = data.aws_ami.latest_ubuntu_ami.id
+  instance_type          = var.instance_type
+  user_data              = file(var.user_data_file)
   vpc_security_group_ids = var.vpc_security_group_ids
-  tags = var.tags
+  tags                   = var.tags
 }

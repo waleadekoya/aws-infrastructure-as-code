@@ -1,6 +1,7 @@
 resource "aws_security_group" "my_sg" {
   name        = "custom_sg"
   description = "My security group"
+#  vpc_id = module.vpc.id
 
   ingress {
     from_port   = 80
