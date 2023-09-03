@@ -58,4 +58,11 @@ resource "aws_instance" "example" {
   vpc_security_group_ids = var.vpc_security_group_ids
   tags                   = var.tags
   subnet_id              = var.subnet_id
+
+#  lifecycle {
+#    create_before_destroy = true
+  # Terraform would ignore changes to the instance_type attribute.
+  # Even if you change it in your configuration, Terraform will not apply the change when running terraform apply.
+#    ignore_changes = [instance_type]
+#  }
 }
